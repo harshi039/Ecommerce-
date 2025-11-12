@@ -42,3 +42,64 @@ function Home() {
 }
 
 export default Home;
+/* Home.css */
+body {
+  margin: 0;
+  font-family: "Poppins", sans-serif;
+  background: linear-gradient(135deg, #00b4db, #0083b0);
+  color: white;
+  height: 100vh;
+}
+
+.home-container {
+  text-align: center;
+}
+
+.navbar {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  padding: 15px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.logo {
+  font-weight: bold;
+  font-size: 20px;
+  color: white;
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 30px;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links li {
+  cursor: pointer;
+  font-size: 16px;
+  transition: 0.3s;
+}
+
+.nav-links li:hover {
+  color: #003366;
+  font-weight: 500;
+}
+
+.content {
+  margin-top: 150px;
+}
+
+.content h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.content p {
+  font-size: 16px;
+  color: #f0f0f0;
+}
