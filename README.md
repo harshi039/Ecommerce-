@@ -1,68 +1,51 @@
-navbar.js
-import { Link } from "react-router-dom";
+import { useState } from "react";
 
-export default function Navbar() {
+export default function LoginPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("customer");
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    console.log("Logging in:", { username, password, role });
+    // Add backend integration here
+  };
+
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-dark px-4">
-      <Link className="navbar-brand" to="/">React Ecommerce</Link>
-      <div className="collapse navbar-collapse">
-        <ul className="navbar-nav me-auto">
-          <li className="nav-item"><Link className="nav-link" to="/">Home</Link></li>
-          <li className="nav-item"><Link className="nav-link" to="/products">Products</Link></li>
-          <li className="nav-item"><Link className="nav-link" to="/contact">Contact</Link></li>
-        </ul>
-        <div>
-          <button className="btn btn-outline-light me-2">Login</button>
-          <button className="btn btn-outline-light me-2">Register</button>
-          <button className="btn btn-warning">Cart (0)</button>
-        </div>
+    <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh", background: "linear-gradient(135deg, #0072CE, #00487E)" }}>
+      <div className="card shadow" style={{ width: "400px", padding: "30px", borderRadius: "12px", backgroundColor: "#ffffff" }}>
+        <h3 className="text-center mb-4">SC Shop Login</h3>
+        <form onSubmit={handleLogin}>
+          <div className="mb-3">
+            <label className="form-label">Username</label>
+            <input type="text" className="form-control" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter username" />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Password</label>
+            <input type="password" className="form-control" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter password" />
+          </div>
+          <div className="mb-4">
+            <label className="form-label">Login As</label>
+            <select className="form-select" value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="customer">Customer</option>
+              <option value="seller">Seller</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button type="submit" className="btn btn-primary w-100">Submit</button>
+        </form>
       </div>
-    </nav>
-  );
-}
-
-home.js
-export default function Home() {
-  return (
-    <div className="text-center mt-5">
-      <h1>New Season Arrivals</h1>
-      <p>Check out all the latest trends</p>
     </div>
   );
 }
 
-App.js
+Aboutus.js
 
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Navbar from "./components/Navbar";
-import Home from "./pages/Home";
-import Products from "./pages/Products";
-import Contact from "./pages/Contact";
-
-function App() {
-  return (
-    <Router>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/contact" element={<Contact />} />
-      </Routes>
-    </Router>
-  );
-}
-
-export default App;
-
-contact.js
-export default function Contact() {
+export default function AboutUs() {
   return (
     <div className="container mt-5">
-      <h2>Contact Us</h2>
-      <p>Email: support@reactecom.com</p>
+      <h2>About Us</h2>
+      <p>Welcome to React Ecommerce! We offer the latest fashion, electronics, and more. Our team is dedicated to providing a seamless shopping experience for customers, sellers, and admins alike.</p>
     </div>
   );
 }
-
-
-
