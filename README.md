@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 export default function Cart() {
   const [cartItems, setCartItems] = useState([]);
 
@@ -10,7 +12,7 @@ export default function Cart() {
     const updatedCart = cartItems.filter((item) => item.id !== id);
     localStorage.setItem("cart", JSON.stringify(updatedCart));
     setCartItems(updatedCart);
-    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("storage")); // 🔔 Update cart count in navbar
   };
 
   return (
@@ -23,13 +25,21 @@ export default function Cart() {
           {cartItems.map((item) => (
             <div key={item.id} className="col-md-4 mb-4">
               <div className="card h-100">
-                <img src={item.image} className="card-img-top" alt={item.name} />
+                <img
+                  src={item.image}
+                  className="card-img-top"
+                  alt={item.name}
+                  style={{ height: "200px", objectFit: "cover" }}
+                />
                 <div className="card-body">
                   <h5 className="card-title">{item.name}</h5>
                   <p className="card-text">{item.description}</p>
                   <p className="fw-bold">{item.price}</p>
                   <p>Quantity: {item.quantity}</p>
-                  <button className="btn btn-danger" onClick={() => handleRemove(item.id)}>
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => handleRemove(item.id)}
+                  >
                     Remove
                   </button>
                 </div>
