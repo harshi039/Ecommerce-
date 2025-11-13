@@ -12,7 +12,7 @@ export default function Cart() {
     const updatedCart = cartItems.filter((item) => item.id !== id);
     localStorage.setItem("cart", JSON.stringify(updatedCart));
     setCartItems(updatedCart);
-    window.dispatchEvent(new Event("storage")); // 🔔 Update cart count in navbar
+    window.dispatchEvent(new Event("storage")); // updates cart count in navbar
   };
 
   return (
