@@ -1,24 +1,8 @@
-export default function OrderConfirmed() {
-  return (
-    <div className="container mt-5 text-center">
-      <h2 className="text-success">✅ Order Confirmed!</h2>
-      <p>Thank you for shopping with EasyShop.</p>
-    </div>
-  );
-}
-
-
-import Delivery from "./pages/Delivery";
-import OrderConfirmed from "./pages/OrderConfirmed";
-
-<Route path="/delivery" element={<Delivery />} />
-<Route path="/order-confirmed" element={<OrderConfirmed />} />
-
-
 import { useNavigate } from "react-router-dom";
 
-const Checkout = () => {
+export default function Checkout() {
   const navigate = useNavigate();
+  const product = JSON.parse(localStorage.getItem("checkoutProduct"));
 
   const handleConfirmCheckout = () => {
     navigate("/delivery");
@@ -26,10 +10,19 @@ const Checkout = () => {
 
   return (
     <div className="container mt-5">
-      {/* Product details here */}
-      <button className="btn btn-success" onClick={handleConfirmCheckout}>
-        Confirm Checkout
-      </button>
+      <h2>Checkout</h2>
+      {product ? (
+        <>
+          <h4>{product.name}</h4>
+          <p>{product.description}</p>
+          <h5>{product.price}/-</h5>
+          <button className="btn btn-primary" onClick={handleConfirmCheckout}>
+            Confirm Checkout
+          </button>
+        </>
+      ) : (
+        <p>No product selected.</p>
+      )}
     </div>
   );
-};
+}
