@@ -1,43 +1,35 @@
-import { useState } from "react";
+export default function OrderConfirmed() {
+  return (
+    <div className="container mt-5 text-center">
+      <h2 className="text-success">✅ Order Confirmed!</h2>
+      <p>Thank you for shopping with EasyShop.</p>
+    </div>
+  );
+}
+
+
+import Delivery from "./pages/Delivery";
+import OrderConfirmed from "./pages/OrderConfirmed";
+
+<Route path="/delivery" element={<Delivery />} />
+<Route path="/order-confirmed" element={<OrderConfirmed />} />
+
+
 import { useNavigate } from "react-router-dom";
 
-export default function Delivery() {
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [payment, setPayment] = useState("");
+const Checkout = () => {
   const navigate = useNavigate();
 
-  const handleConfirmBuy = () => {
-    localStorage.setItem("orderDetails", JSON.stringify({ name, address, payment }));
-    navigate("/order-confirmed");
+  const handleConfirmCheckout = () => {
+    navigate("/delivery");
   };
 
   return (
     <div className="container mt-5">
-      <h2>Delivery & Payment Details</h2>
-      <input
-        type="text"
-        placeholder="Your Name"
-        className="form-control mb-3"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <textarea
-        placeholder="Your Address"
-        className="form-control mb-3"
-        value={address}
-        onChange={(e) => setAddress(e.target.value)}
-      />
-      <input
-        type="text"
-        placeholder="Payment Method (e.g., UPI, Card)"
-        className="form-control mb-3"
-        value={payment}
-        onChange={(e) => setPayment(e.target.value)}
-      />
-      <button className="btn btn-primary" onClick={handleConfirmBuy}>
-        Confirm Buy
+      {/* Product details here */}
+      <button className="btn btn-success" onClick={handleConfirmCheckout}>
+        Confirm Checkout
       </button>
     </div>
   );
-}
+};
