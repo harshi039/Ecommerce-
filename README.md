@@ -1,24 +1,6 @@
-package main
-
-import (
-  "log"
-
-  "github.com/joho/godotenv"
-  "github.com/gin-gonic/gin"
-  "ecommerce/backend/config"
-  "ecommerce/backend/models"
-  "ecommerce/backend/routes"
-)
-
-func main() {
-  _ = godotenv.Load()
-  config.InitDB()
-
-  if err := config.DB.AutoMigrate(&models.Seller{}, &models.Product{}); err != nil {
-    log.Fatalf("Migration failed: %v", err)
-  }
-
-  r := gin.Default()
-  routes.Register(r)
-  r.Run(":8080")
-}
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=easyshop_user
+DB_PASS=your_password_here
+DB_NAME=easyshop
+DB_SSLMODE=disable
