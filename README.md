@@ -1,25 +1,20 @@
-import React, { useState } from "react";
-import API from "../../services/api";
+import API from "../services/api"; // adjust path if needed
 
-export default function AddProduct() {
-  const [product, setProduct] = useState({ name: "", description: "", price: "" });
+const handleLogin = async () => {
+  try {
+    const res = await API.post("/seller/login", {
+      email: username,
+      password: password,
+    });
 
-  const handleSubmit = async () => {
-    try {
-      await API.post("/seller/products", product);
-      alert("Product added!");
-    } catch (err) {
-      alert("Failed to add product");
-    }
-  };
+    const { token, seller } = res.data;
 
-  return (
-    <div className="container mt-5">
-      <h2>Add Product</h2>
-      <input className="form-control mb-2" placeholder="Name" onChange={(e) => setProduct({ ...product, name: e.target.value })} />
-      <input className="form-control mb-2" placeholder="Description" onChange={(e) => setProduct({ ...product, description: e.target.value })} />
-      <input className="form-control mb-2" type="number" placeholder="Price" onChange={(e) => setProduct({ ...product, price: e.target.value })} />
-      <button className="btn btn-success" onClick={handleSubmit}>Add Product</button>
-    </div>
-  );
-}
+    localStorage.setItem("sellerToken", token);
+    localStorage.setItem("role", "seller");
+    localStorage.setItem("username", seller.name);
+
+    navigate("/seller/dashboard");
+  } catch (err) {
+    alert("Login failed: " + err.response.data.error);
+  }
+};
