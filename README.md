@@ -1,15 +1,20 @@
-import axios from "axios";
+import React, { useEffect, useState } from "react";
+import API from "../../services/api";
 
-const API = axios.create({
-  baseURL: "http://localhost:8080",
-});
+export default function SellerDashboard() {
+  const [orders, setOrders] = useState([]);
 
-API.interceptors.request.use((req) => {
-  const token = localStorage.getItem("sellerToken");
-  if (token) {
-    req.headers.Authorization = `Bearer ${token}`;
-  }
-  return req;
-});
+  useEffect(() => {
+    API.get("/seller/orders")
+      .then((res) => setOrders(res.data))
+      .catch((err) => console.error("Failed to fetch orders:", err));
+  }, []);
 
-export default API;
+  return (
+    <div className="container mt-5">
+      <h2>Welcome Seller!</h2>
+      <button className="btn btn-primary">Add Product</button>
+      <button className="btn btn-secondary ms-2">View Orders</button>
+    </div>
+  );
+}
