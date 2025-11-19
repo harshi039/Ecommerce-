@@ -1,73 +1,90 @@
-import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import React from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('customer'); // default role
+export default function SellerDashboard() {
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    localStorage.setItem('role', role);
-    localStorage.setItem('username', username);
+  return (
+    <div className="container mt-5">
+      <h2 className="text-center">Welcome Seller!</h2>
+      <div className="d-flex justify-content-center mt-4">
+        <button className="btn btn-primary me-3" onClick={() => navigate("/seller/add-product")}>
+          Add Product
+        </button>
+        <button className="btn btn-secondary" onClick={() => navigate("/seller/view-orders")}>
+          View Orders
+        </button>
+      </div>
+      <div className="mt-5">
+        <h4>Your Orders:</h4>
+        <p>No orders yet.</p>
+      </div>
+    </div>
+  );
+}
 
-    if (role === 'admin') {
-      navigate('/admin/dashboard');
-    } else if (role === 'seller') {
-      navigate('/seller/dashboard');
-    } else {
-      navigate('/customer/dashboard');
-    }
+
+
+
+import React, { useState } from "react";
+
+export default function AddProduct() {
+  const [product, setProduct] = useState({
+    name: "",
+    description: "",
+    price: "",
+    image: null,
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProduct((prev) => ({ ...prev, [name]: value }));
   };
 
-  useEffect(() => {
-    const savedRole = localStorage.getItem('role');
-    if (savedRole === 'admin') {
-      navigate('/admin/dashboard');
-    } else if (savedRole === 'seller') {
-      navigate('/seller/dashboard');
-    } else if (savedRole === 'customer') {
-      navigate('/customer/dashboard');
-    }
-  }, [navigate]);
+  const handleFileChange = (e) => {
+    setProduct((prev) => ({ ...prev, image: e.target.files[0] }));
+  };
+
+  const handleSubmit = () => {
+    const existing = JSON.parse(localStorage.getItem("sellerProducts") || "[]");
+    const newProduct = { ...product, id: Date.now() };
+    localStorage.setItem("sellerProducts", JSON.stringify([...existing, newProduct]));
+    alert("Product added successfully!");
+  };
 
   return (
-    <div className="login-page">
-      <div className="login-box">
-        <div className="login-content">
-          <div className="login-title">Login</div>
-
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="form-control mb-2"
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="form-control mb-2"
-          />
-
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="form-select mb-3"
-          >
-            <option value="customer">Customer</option>
-            <option value="seller">Seller</option>
-            <option value="admin">Admin</option>
-          </select>
-
-          <button className="btn btn-primary" onClick={handleLogin}>
-            Login
-          </button>
-        </div>
-      </div>
+    <div className="container mt-5">
+      <h2>Add Product</h2>
+      <input
+        className="form-control mb-2"
+        name="name"
+        placeholder="Product Name"
+        value={product.name}
+        onChange={handleChange}
+      />
+      <input
+        className="form-control mb-2"
+        name="description"
+        placeholder="Description"
+        value={product.description}
+        onChange={handleChange}
+      />
+      <input
+        className="form-control mb-2"
+        name="price"
+        type="number"
+        placeholder="Price"
+        value={product.price}
+        onChange={handleChange}
+      />
+      <input
+        className="form-control mb-3"
+        type="file"
+        onChange={handleFileChange}
+      />
+      <button className="btn btn-success" onClick={handleSubmit}>
+        Add Product
+      </button>
     </div>
   );
 }
