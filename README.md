@@ -1,10 +1,31 @@
+package config
+
+import (
+    "fmt"
+    "os"
+    "gorm.io/driver/postgres"
+    "gorm.io/gorm"
+)
+
+var DB *gorm.DB
+
+func InitDB() {
+    dsn := os.Getenv("DATABASE_URL")
+    var err error
+    DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+    if err != nil {
+        panic(fmt.Sprintf("Failed to connect to database: %v", err))
+    }
+}
+
+
 package models
 
 type Seller struct {
     ID       uint   `gorm:"primaryKey" json:"id"`
     Name     string `json:"name"`
     Email    string `gorm:"unique" json:"email"`
-    Password string `json:"password"` // hashed password
+    Password string `json:"password"`
 }
 
 
@@ -12,10 +33,10 @@ package controllers
 
 import (
     "net/http"
-    "seller-dashboard-backend/models"
     "seller-dashboard-backend/config"
-    "github.com/gin-gonic/gin"
+    "seller-dashboard-backend/models"
     "golang.org/x/crypto/bcrypt"
+    "github.com/gin-gonic/gin"
 )
 
 func RegisterSeller(c *gin.Context) {
@@ -49,8 +70,8 @@ func RegisterSeller(c *gin.Context) {
 package routes
 
 import (
-    "github.com/gin-gonic/gin"
     "seller-dashboard-backend/controllers"
+    "github.com/gin-gonic/gin"
 )
 
 func Register(r *gin.Engine) {
