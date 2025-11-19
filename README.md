@@ -1,46 +1,35 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("seller"); // default to seller
-  const [error, setError] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('customer'); // default role
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const storedRole = localStorage.getItem("role");
-    if (storedRole === "admin") {
-      navigate("/admin/dashboard");
-    } else if (storedRole === "customer") {
-      navigate("/customer/dashboard");
-    } else if (storedRole === "seller") {
-      navigate("/seller/dashboard");
-    }
-  }, [navigate]);
+  const handleLogin = () => {
+    localStorage.setItem('role', role);
+    localStorage.setItem('username', username);
 
-  const handleLogin = async () => {
-    try {
-      if (role === "seller") {
-        const res = await axios.post("http://localhost:8080/seller/login", {
-          email,
-          password,
-        });
-
-        const { token, seller } = res.data;
-        localStorage.setItem("sellerToken", token);
-        localStorage.setItem("role", "seller");
-        localStorage.setItem("username", seller.name);
-
-        navigate("/seller/dashboard");
-      } else {
-        setError("Only seller login is wired to backend right now.");
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || "Login failed");
+    if (role === 'admin') {
+      navigate('/admin/dashboard');
+    } else if (role === 'seller') {
+      navigate('/seller/dashboard');
+    } else {
+      navigate('/customer/dashboard');
     }
   };
+
+  useEffect(() => {
+    const savedRole = localStorage.getItem('role');
+    if (savedRole === 'admin') {
+      navigate('/admin/dashboard');
+    } else if (savedRole === 'seller') {
+      navigate('/seller/dashboard');
+    } else if (savedRole === 'customer') {
+      navigate('/customer/dashboard');
+    }
+  }, [navigate]);
 
   return (
     <div className="login-page">
@@ -50,9 +39,9 @@ export default function LoginPage() {
 
           <input
             type="text"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             className="form-control mb-2"
           />
 
@@ -69,16 +58,14 @@ export default function LoginPage() {
             onChange={(e) => setRole(e.target.value)}
             className="form-select mb-3"
           >
+            <option value="customer">Customer</option>
             <option value="seller">Seller</option>
             <option value="admin">Admin</option>
-            <option value="customer">Customer</option>
           </select>
 
           <button className="btn btn-primary" onClick={handleLogin}>
-            Submit
+            Login
           </button>
-
-          {error && <div className="text-danger mt-3">{error}</div>}
         </div>
       </div>
     </div>
