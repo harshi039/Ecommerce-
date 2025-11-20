@@ -280,3 +280,22 @@ func main() {
 	log.Printf("Server running on port %s", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, router))
 }
+
+
+
+package main
+
+import (
+	"log"
+	"net/http"
+)
+
+func main() {
+	cfg := LoadConfig()           // from config.go
+	db := ConnectDB(cfg.DatabaseURL) // from db.go
+	authHandler := NewAuthHandler(db, cfg.JWTSecret) // from handlers.go
+	router := SetupRouter(authHandler) // from router.go
+
+	log.Printf("Server running on port %s", cfg.Port)
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, router))
+}
