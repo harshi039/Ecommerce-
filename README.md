@@ -164,3 +164,124 @@ import ViewOrders from "./seller/ViewOrders";
 <Route path="/seller/add-product" element={<AddProduct />} />
 <Route path="/seller/view-products" element={<ViewProducts />} />
 <Route path="/seller/view-orders" element={<ViewOrders />} />
+
+
+
+
+package handlers
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+type SellerHandler struct {
+	DB *pgxpool.Pool
+}
+
+func NewSellerHandler(db *pgxpool.Pool) *SellerHandler {
+	return &SellerHandler{DB: db}
+}
+
+type Product struct {
+	ID          int    `json:"id"`
+	Seller      string `json:"seller"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Price       int    `json:"price"`
+	Status      string `json:"status"`
+}
+
+type OrderView struct {
+	ProductName  string `json:"productName"`
+	CustomerName string `json:"customerName"`
+	Quantity     int    `json:"quantity"`
+	Status       string `json:"status"`
+}
+
+// POST /api/seller/products
+func (h *SellerHandler) AddProduct(w http.ResponseWriter, r *http.Request) {
+	var p Product
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
+		return
+	}
+	if p.Seller == "" || p.Name == "" || p.Price <= 0 {
+		http.Error(w, `{"error":"missing fields"}`, http.StatusBadRequest)
+		return
+	}
+
+	_, err := h.DB.Exec(r.Context(),
+		`INSERT INTO products (seller, name, description, price) VALUES ($1, $2, $3, $4)`,
+		p.Seller, p.Name, p.Description, p.Price,
+	)
+	if err != nil {
+		http.Error(w, `{"error":"insert failed"}`, http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(`{"status":"product added"}`))
+}
+
+// GET /api/seller/products?seller=alice
+func (h *SellerHandler) ViewProducts(w http.ResponseWriter, r *http.Request) {
+	seller := r.URL.Query().Get("seller")
+	if seller == "" {
+		http.Error(w, `{"error":"missing seller"}`, http.StatusBadRequest)
+		return
+	}
+
+	rows, err := h.DB.Query(r.Context(),
+		`SELECT id, name, description, price, status FROM products WHERE seller = $1 ORDER BY created_at DESC`, seller)
+	if err != nil {
+		http.Error(w, `{"error":"query failed"}`, http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var products []Product
+	for rows.Next() {
+		var p Product
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.Status); err == nil {
+			products = append(products, p)
+		}
+	}
+	json.NewEncoder(w).Encode(products)
+}
+
+// GET /api/seller/orders?seller=alice
+func (h *SellerHandler) ViewOrders(w http.ResponseWriter, r *http.Request) {
+	seller := r.URL.Query().Get("seller")
+	if seller == "" {
+		http.Error(w, `{"error":"missing seller"}`, http.StatusBadRequest)
+		return
+	}
+
+	rows, err := h.DB.Query(r.Context(), `
+		SELECT p.name, o.customer, o.quantity, o.status
+		FROM orders o
+		JOIN products p ON o.product_id = p.id
+		WHERE p.seller = $1
+		ORDER BY o.ordered_at DESC
+	`, seller)
+	if err != nil {
+		http.Error(w, `{"error":"query failed"}`, http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var orders []OrderView
+	for rows.Next() {
+		var o OrderView
+		if err := rows.Scan(&o.ProductName, &o.CustomerName, &o.Quantity, &o.Status); err == nil {
+			orders = append(orders, o)
+		}
+	}
+	json.NewEncoder(w).Encode(orders)
+}
+
+
