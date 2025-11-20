@@ -135,3 +135,43 @@ import ViewOrders from "./seller/ViewOrders";
 <Route path="/seller/add-product" element={<AddProduct />} />
 <Route path="/seller/view-products" element={<ViewProducts />} />
 <Route path="/seller/view-orders" element={<ViewOrders />} />
+
+
+
+CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  seller TEXT NOT NULL REFERENCES users(username),
+  name TEXT NOT NULL,
+  description TEXT,
+  price INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  customer TEXT NOT NULL REFERENCES users(username),
+  quantity INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Accepted', 'Shipped', 'Delivered')),
+  ordered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+SELECT id, name, description, price, status
+FROM products
+WHERE seller = 'alice'
+ORDER BY created_at DESC;
+
+SELECT
+  o.id,
+  p.name AS product_name,
+  o.customer AS customer_name,
+  o.quantity,
+  o.status
+FROM orders o
+JOIN products p ON o.product_id = p.id
+WHERE p.seller = 'alice'
+ORDER BY o.ordered_at DESC;
+
+
