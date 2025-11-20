@@ -320,3 +320,77 @@ const handleLogin = async () => {
     console.error(err);
   }
 };
+
+
+
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+export default function RegisterPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("Customer");
+  const navigate = useNavigate();
+
+  const handleRegister = async () => {
+    if (!username || !password || !role) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, role }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
+
+      alert("Registration successful! Please log in.");
+      navigate("/login");
+    } catch (err) {
+      alert("Registration failed");
+      console.error("Register error:", err);
+    }
+  };
+
+  return (
+    <div className="container mt-5">
+      <h2 className="text-center mb-4">EasyShop Register</h2>
+      <div className="row justify-content-center">
+        <div className="col-md-6">
+          <input
+            className="form-control mb-3"
+            type="text"
+            placeholder="Enter username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <input
+            className="form-control mb-3"
+            type="password"
+            placeholder="Enter password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <select
+            className="form-control mb-4"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+          >
+            <option>Customer</option>
+            <option>Seller</option>
+            <option>Admin</option>
+          </select>
+          <button className="btn btn-primary w-100" onClick={handleRegister}>
+            Register
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
