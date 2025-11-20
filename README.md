@@ -317,3 +317,29 @@ func Setup(authHandler http.Handler) http.Handler {
 
 	return c.Handler(r)
 }
+
+
+
+// DELETE /api/seller/products/{id}
+func (h *SellerHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, `{"error":"invalid product id"}`, http.StatusBadRequest)
+		return
+	}
+
+	cmd, err := h.DB.Exec(context.Background(),
+		`DELETE FROM products WHERE id = $1`, id)
+	if err != nil {
+		http.Error(w, `{"error":"delete failed"}`, http.StatusInternalServerError)
+		return
+	}
+	if cmd.RowsAffected() == 0 {
+		http.Error(w, `{"error":"product not found"}`, http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"product deleted"}`))
+}
