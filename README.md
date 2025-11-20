@@ -1,3 +1,10 @@
-PORT=8080
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/easyshop?sslmode=disable
-JWT_SECRET=supersecret_change_me
+CREATE DATABASE easyshop;
+\c easyshop
+
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('Customer','Seller','Admin')),
+  created_at TIMESTAMP DEFAULT NOW()
+);
