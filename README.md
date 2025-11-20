@@ -2,6 +2,29 @@ package main
 
 import (
 	"log"
+	"net/http"
+
+	"easyshop-backend/config"
+	"easyshop-backend/db"
+	"easyshop-backend/handlers"
+	"easyshop-backend/router"
+)
+
+func main() {
+	cfg := config.Load()
+	pool := db.Connect(cfg.DatabaseURL)
+	authHandler := handlers.NewAuthHandler(pool, cfg.JWTSecret)
+	r := router.Setup(authHandler)
+
+	log.Printf("Server running on port %s", cfg.Port)
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
+}
+
+
+package config
+
+import (
+	"log"
 	"os"
 	"github.com/joho/godotenv"
 )
@@ -12,7 +35,7 @@ type Config struct {
 	JWTSecret   string
 }
 
-func LoadConfig() *Config {
+func Load() *Config {
 	_ = godotenv.Load()
 	return &Config{
 		Port:        get("PORT", "8080"),
@@ -29,7 +52,7 @@ func get(key, def string) string {
 }
 
 
-package main
+package db
 
 import (
 	"context"
@@ -38,7 +61,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func ConnectDB(databaseURL string) *pgxpool.Pool {
+func Connect(databaseURL string) *pgxpool.Pool {
 	cfg, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		log.Fatalf("parse db config: %v", err)
@@ -56,7 +79,8 @@ func ConnectDB(databaseURL string) *pgxpool.Pool {
 }
 
 
-package main
+
+package models
 
 type User struct {
 	ID           int64  `json:"id"`
@@ -66,7 +90,7 @@ type User struct {
 }
 
 
-package main
+package auth
 
 import "golang.org/x/crypto/bcrypt"
 
@@ -80,7 +104,7 @@ func CheckPassword(hash, plain string) bool {
 }
 
 
-package main
+package auth
 
 import (
 	"time"
@@ -107,7 +131,7 @@ func GenerateToken(secret, username, role string) (string, error) {
 }
 
 
-package main
+package handlers
 
 import (
 	"context"
@@ -115,7 +139,10 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
 	"github.com/jackc/pgx/v5/pgxpool"
+	"easyshop-backend/models"
+	"easyshop-backend/auth"
 )
 
 type AuthHandler struct {
@@ -175,12 +202,12 @@ func (h *AuthHandler) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := h.findUserByUsername(r.Context(), req.Username)
-	if err != nil || user.Role != req.Role || !CheckPassword(user.PasswordHash, req.Password) {
+	if err != nil || user.Role != req.Role || !auth.CheckPassword(user.PasswordHash, req.Password) {
 		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 		return
 	}
 
-	token, err := GenerateToken(h.JWTKey, user.Username, user.Role)
+	token, err := auth.GenerateToken(h.JWTKey, user.Username, user.Role)
 	if err != nil {
 		http.Error(w, `{"error":"token generation failed"}`, http.StatusInternalServerError)
 		return
@@ -203,13 +230,13 @@ func (h *AuthHandler) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hash, err := HashPassword(req.Password)
+	hash, err := auth.HashPassword(req.Password)
 	if err != nil {
 		http.Error(w, `{"error":"hashing failed"}`, http.StatusInternalServerError)
 		return
 	}
 
-	user := User{Username: req.Username, PasswordHash: hash, Role: req.Role}
+	user := models.User{Username: req.Username, PasswordHash: hash, Role: req.Role}
 	if err := h.insertUser(r.Context(), user); err != nil {
 		http.Error(w, `{"error":"username exists or insert failed"}`, http.StatusConflict)
 		return
@@ -219,16 +246,16 @@ func (h *AuthHandler) register(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"registered"}`))
 }
 
-func (h *AuthHandler) findUserByUsername(ctx context.Context, username string) (*User, error) {
+func (h *AuthHandler) findUserByUsername(ctx context.Context, username string) (*models.User, error) {
 	row := h.DB.QueryRow(ctx, `SELECT id, username, password_hash, role FROM users WHERE username = $1`, username)
-	var u User
+	var u models.User
 	if err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role); err != nil {
 		return nil, errors.New("not found")
 	}
 	return &u, nil
 }
 
-func (h *AuthHandler) insertUser(ctx context.Context, u User) error {
+func (h *AuthHandler) insertUser(ctx context.Context, u models.User) error {
 	_, err := h.DB.Exec(ctx,
 		`INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3)`,
 		u.Username, u.PasswordHash, u.Role,
@@ -237,7 +264,7 @@ func (h *AuthHandler) insertUser(ctx context.Context, u User) error {
 }
 
 
-package main
+package router
 
 import (
 	"net/http"
@@ -245,7 +272,7 @@ import (
 	"github.com/rs/cors"
 )
 
-func SetupRouter(authHandler http.Handler) http.Handler {
+func Setup(authHandler http.Handler) http.Handler {
 	r := mux.NewRouter()
 	r.Handle("/api/auth/login", authHandler).Methods(http.MethodPost)
 	r.Handle("/api/auth/register", authHandler).Methods(http.MethodPost)
@@ -258,44 +285,3 @@ func SetupRouter(authHandler http.Handler) http.Handler {
 		AllowedOrigins:   []string{"http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
-		AllowCredentials: true,
-	})
-	return c.Handler(r)
-}
-
-
-package main
-
-import (
-	"log"
-	"net/http"
-)
-
-func main() {
-	cfg := LoadConfig()
-	db := ConnectDB(cfg.DatabaseURL)
-	authHandler := NewAuthHandler(db, cfg.JWTSecret)
-	router := SetupRouter(authHandler)
-
-	log.Printf("Server running on port %s", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, router))
-}
-
-
-
-package main
-
-import (
-	"log"
-	"net/http"
-)
-
-func main() {
-	cfg := LoadConfig()           // from config.go
-	db := ConnectDB(cfg.DatabaseURL) // from db.go
-	authHandler := NewAuthHandler(db, cfg.JWTSecret) // from handlers.go
-	router := SetupRouter(authHandler) // from router.go
-
-	log.Printf("Server running on port %s", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, router))
-}
