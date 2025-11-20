@@ -285,3 +285,38 @@ func Setup(authHandler http.Handler) http.Handler {
 		AllowedOrigins:   []string{"http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+
+
+
+
+const handleLogin = async () => {
+  if (!username || !password || !role) {
+    alert("Please fill all fields");
+    return;
+  }
+
+  try {
+    const res = await fetch("http://localhost:8080/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, role }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err);
+    }
+
+    const data = await res.json();
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("username", data.username);
+    localStorage.setItem("role", data.role);
+
+    if (data.role === "Seller") navigate("/seller-dashboard");
+    else if (data.role === "Customer") navigate("/product");
+    else if (data.role === "Admin") navigate("/admin-dashboard");
+  } catch (err) {
+    alert("Login failed");
+    console.error(err);
+  }
+};
