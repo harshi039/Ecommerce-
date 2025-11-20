@@ -285,3 +285,35 @@ func (h *SellerHandler) ViewOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 
+import "easyshop-backend/handlers"
+
+func Setup(authHandler http.Handler) http.Handler {
+	r := mux.NewRouter()
+
+	// Auth routes
+	r.Handle("/api/auth/login", authHandler).Methods(http.MethodPost)
+	r.Handle("/api/auth/register", authHandler).Methods(http.MethodPost)
+
+	// Seller routes
+	db := db.Connect(config.Load().DatabaseURL)
+	sellerHandler := handlers.NewSellerHandler(db)
+	r.HandleFunc("/api/seller/products", sellerHandler.AddProduct).Methods(http.MethodPost)
+	r.HandleFunc("/api/seller/products", sellerHandler.ViewProducts).Methods(http.MethodGet)
+	r.HandleFunc("/api/seller/orders", sellerHandler.ViewOrders).Methods(http.MethodGet)
+
+	// Health check
+	r.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	}).Methods(http.MethodGet)
+
+	// CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+	})
+
+	return c.Handler(r)
+}
