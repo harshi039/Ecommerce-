@@ -1,58 +1,43 @@
-import React, { useState } from "react";
-
-export default function AddProduct() {
-  const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
-  const [price, setPrice] = useState("");
-  const [image, setImage] = useState(null);
-
-  const handleAdd = async () => {
-    const seller = localStorage.getItem("username");
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("description", desc);
-    formData.append("price", price);
-    formData.append("seller", seller);
-    formData.append("image", image);
-
-    const res = await fetch("http://localhost:8080/api/seller/products", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (res.ok) {
-      alert("Product added");
-      setName("");
-      setDesc("");
-      setPrice("");
-      setImage(null);
-    } else {
-      alert("Failed to add product");
+func (h *SellerHandler) AddProduct(w http.ResponseWriter, r *http.Request) {
+    err := r.ParseMultipartForm(10 << 20)
+    if err != nil {
+        http.Error(w, `{"error":"invalid form"}`, http.StatusBadRequest)
+        return
     }
-  };
 
-  return (
-    <div className="container mt-4">
-      <div className="card p-4 shadow-sm" style={{ maxWidth: "500px", margin: "auto" }}>
-        <h3 className="mb-3 text-center">Add Product</h3>
-        <div className="mb-3">
-          <label className="form-label">Product Name</label>
-          <input className="form-control" value={name} onChange={(e) => setName(e.target.value)} required />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Description</label>
-          <input className="form-control" value={desc} onChange={(e) => setDesc(e.target.value)} required />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Price</label>
-          <input className="form-control" type="number" value={price} onChange={(e) => setPrice(e.target.value)} required />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Product Image</label>
-          <input className="form-control" type="file" accept="image/*" onChange={(e) => setImage(e.target.files[0])} required />
-        </div>
-        <button className="btn btn-success w-100" onClick={handleAdd}>Add Product</button>
-      </div>
-    </div>
-  );
+    name := r.FormValue("name")
+    description := r.FormValue("description")
+    priceStr := r.FormValue("price")
+    sellerStr := r.FormValue("seller")
+
+    price, _ := strconv.Atoi(priceStr)
+    seller := sellerStr
+
+    file, handler, err := r.FormFile("image")
+    if err != nil {
+        http.Error(w, `{"error":"image upload failed"}`, http.StatusBadRequest)
+        return
+    }
+    defer file.Close()
+
+    imagePath := "uploads/" + handler.Filename
+    dst, err := os.Create(imagePath)
+    if err != nil {
+        http.Error(w, `{"error":"image save failed"}`, http.StatusInternalServerError)
+        return
+    }
+    defer dst.Close()
+    io.Copy(dst, file)
+
+    _, err = h.DB.Exec(r.Context(),
+        "INSERT INTO products (seller, name, description, price, status, image_url) VALUES ($1, $2, $3, $4, $5, $6)",
+        seller, name, description, price, "active", "/"+imagePath)
+
+    if err != nil {
+        http.Error(w, `{"error":"insert failed"}`, http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusCreated)
+    w.Write([]byte(`{"status":"product added"}`))
 }
