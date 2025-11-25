@@ -1,217 +1,117 @@
-package handlers
+package handler
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
+    "encoding/json"
+    "net/http"
+    "strings"
+    "log"
+    "time"
+    "os"
 
-	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5/pgxpool"
+    "github.com/username/backend/db"
+    "github.com/username/backend/model"
+    "github.com/golang-jwt/jwt/v5"
+    "golang.org/x/crypto/bcrypt"
 )
 
-type SellerHandler struct {
-	DB *pgxpool.Pool
+type RegisterRequest struct {
+    Username string `json:"username"`
+    Password string `json:"password"`
+    Role     string `json:"role"`
 }
 
-func NewSellerHandler(db *pgxpool.Pool) *SellerHandler {
-	return &SellerHandler{DB: db}
+type LoginRequest struct {
+    Username string `json:"username"`
+    Password string `json:"password"`
 }
 
-type Product struct {
-	ID          int    `json:"id"`
-	Seller      string `json:"seller"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Price       int    `json:"price"`
-	Status      string `json:"status"`
-	ImageURL    string `json:"imageUrl"`
+type LoginResponse struct {
+    Token string `json:"token"`
+    Role  string `json:"role"`
 }
 
-type OrderView struct {
-	ProductName  string `json:"productName"`
-	CustomerName string `json:"customerName"`
-	Quantity     int    `json:"quantity"`
-	Status       string `json:"status"`
+type RegisterResponse struct {
+    Message string `json:"message"`
 }
 
-// POST /api/seller/products
-func (h *SellerHandler) AddProduct(w http.ResponseWriter, r *http.Request) {
-	// allow only POST
-	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-		return
-	}
-
-	err := r.ParseMultipartForm(10 << 20) // 10MB
-	if err != nil {
-		http.Error(w, `{"error":"invalid form"}`, http.StatusBadRequest)
-		return
-	}
-
-	name := r.FormValue("name")
-	description := r.FormValue("description")
-	priceStr := r.FormValue("price")
-	seller := r.FormValue("seller")
-
-	if name == "" || description == "" || priceStr == "" || seller == "" {
-		http.Error(w, `{"error":"missing fields"}`, http.StatusBadRequest)
-		return
-	}
-
-	price, err := strconv.Atoi(priceStr)
-	if err != nil {
-		http.Error(w, `{"error":"invalid price"}`, http.StatusBadRequest)
-		return
-	}
-
-	file, handler, err := r.FormFile("image")
-	if err != nil {
-		http.Error(w, `{"error":"image upload failed"}`, http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	// ensure uploads dir exists
-	if err := os.MkdirAll("uploads", 0755); err != nil {
-		fmt.Printf("failed to create upload dir: %v\n", err)
-		http.Error(w, `{"error":"server error"}`, http.StatusInternalServerError)
-		return
-	}
-
-	// make filename safe by using base name and a timestamp or keep original
-	filename := filepath.Base(handler.Filename)
-	imagePath := filepath.Join("uploads", filename)
-
-	dst, err := os.Create(imagePath)
-	if err != nil {
-		fmt.Printf("create dst failed: %v\n", err)
-		http.Error(w, `{"error":"image save failed"}`, http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
-
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		fmt.Printf("copy file failed: %v\n", err)
-		http.Error(w, `{"error":"image save failed"}`, http.StatusInternalServerError)
-		return
-	}
-
-	// insert into DB. Note: your table column is named "seller" (as shown in screenshots)
-	_, err = h.DB.Exec(context.Background(),
-		`INSERT INTO products (seller, name, description, price, status, image_url)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		seller, name, description, price, "Pending", "/"+imagePath)
-
-	if err != nil {
-		// log actual error for debugging
-		fmt.Printf("Insert error: %v\n", err)
-		http.Error(w, `{"error":"insert failed"}`, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(`{"status":"product added"}`))
+func validateRole(role string) bool {
+    switch role {
+    case "Admin", "Seller", "Customer":
+        return true
+    default:
+        return false
+    }
 }
 
-// GET /api/seller/products?seller=kitty
-func (h *SellerHandler) ViewProducts(w http.ResponseWriter, r *http.Request) {
-	seller := r.URL.Query().Get("seller")
-	if seller == "" {
-		http.Error(w, `{"error":"missing seller"}`, http.StatusBadRequest)
-		return
-	}
+func HandleRegister(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    var req RegisterRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
+        return
+    }
 
-	rows, err := h.DB.Query(context.Background(),
-		`SELECT id, name, description, price, status, image_url
-		 FROM products
-		 WHERE seller = $1
-		 ORDER BY created_at DESC`, seller)
-	if err != nil {
-		fmt.Printf("ViewProducts query error: %v\n", err)
-		http.Error(w, `{"error":"query failed"}`, http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
+    req.Username = strings.TrimSpace(req.Username)
+    req.Role = strings.TrimSpace(req.Role)
 
-	var products []Product
-	for rows.Next() {
-		var p Product
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.Status, &p.ImageURL); err == nil {
-			p.Seller = seller
-			products = append(products, p)
-		} else {
-			fmt.Printf("row scan error: %v\n", err)
-		}
-	}
+    if req.Username == "" || req.Password == "" || !validateRole(req.Role) {
+        http.Error(w, `{"error":"missing or invalid fields"}`, http.StatusBadRequest)
+        return
+    }
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(products)
+    hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
+    if err != nil {
+        http.Error(w, `{"error":"hashing failed"}`, http.StatusInternalServerError)
+        return
+    }
+
+    user := model.User{
+        Username: req.Username,
+        Password: string(hashed),
+        Role:     req.Role,
+        ImageURL: "", // Prevent NULL scan error
+    }
+
+    if err := db.SaveUser(user); err != nil {
+        log.Println("Insert error:", err)
+        http.Error(w, `{"error":"username exists or insert failed"}`, http.StatusConflict)
+        return
+    }
+
+    json.NewEncoder(w).Encode(RegisterResponse{Message: "User registered successfully"})
 }
 
-// GET /api/seller/orders?seller=kitty
-func (h *SellerHandler) ViewOrders(w http.ResponseWriter, r *http.Request) {
-	seller := r.URL.Query().Get("seller")
-	if seller == "" {
-		http.Error(w, `{"error":"missing seller"}`, http.StatusBadRequest)
-		return
-	}
+func HandleLogin(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    var req LoginRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
+        return
+    }
 
-	rows, err := h.DB.Query(context.Background(),
-		`SELECT p.name, o.customer, o.quantity, o.status
-		 FROM orders o
-		 JOIN products p ON o.product_id = p.id
-		 WHERE p.seller = $1
-		 ORDER BY o.ordered_at DESC`, seller)
-	if err != nil {
-		fmt.Printf("ViewOrders query error: %v\n", err)
-		http.Error(w, `{"error":"query failed"}`, http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
+    user, err := db.FindUserByUsername(req.Username)
+    if err != nil {
+        http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+        return
+    }
 
-	var orders []OrderView
-	for rows.Next() {
-		var o OrderView
-		if err := rows.Scan(&o.ProductName, &o.CustomerName, &o.Quantity, &o.Status); err == nil {
-			orders = append(orders, o)
-		} else {
-			fmt.Printf("order row scan error: %v\n", err)
-		}
-	}
+    if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+        http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
+        return
+    }
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(orders)
-}
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+        "username": user.Username,
+        "role":     user.Role,
+        "exp":      time.Now().Add(24 * time.Hour).Unix(),
+    })
 
-// DELETE /api/seller/products/{id}
-func (h *SellerHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
-	idStr := mux.Vars(r)["id"]
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, `{"error":"invalid product id"}`, http.StatusBadRequest)
-		return
-	}
+    secret := os.Getenv("JWT_SECRET")
+    tokenString, err := token.SignedString([]byte(secret))
+    if err != nil {
+        http.Error(w, `{"error":"token generation failed"}`, http.StatusInternalServerError)
+        return
+    }
 
-	cmd, err := h.DB.Exec(context.Background(),
-		`DELETE FROM products WHERE id = $1`, id)
-	if err != nil {
-		fmt.Printf("delete exec error: %v\n", err)
-		http.Error(w, `{"error":"delete failed"}`, http.StatusInternalServerError)
-		return
-	}
-
-	if cmd.RowsAffected() == 0 {
-		http.Error(w, `{"error":"product not found"}`, http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"product deleted"}`))
+    json.NewEncoder(w).Encode(LoginResponse{Token: tokenString, Role: user.Role})
 }
