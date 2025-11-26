@@ -178,3 +178,59 @@ r.Route("/admin", func(r chi.Router) {
 	r.Get("/products", adminHandler.GetAllProducts)
 	r.Put("/products/{id}/status", adminHandler.UpdateProductStatus)
 })
+
+
+
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+
+export default function ProductManagement() {
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    axios.get("/admin/products", {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    }).then(res => setProducts(res.data));
+  }, []);
+
+  const updateStatus = (id, status) => {
+    axios.put(`/admin/products/${id}/status`, { status }, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    }).then(() => {
+      setProducts(prev =>
+        prev.map(p => p.id === id ? { ...p, status } : p)
+      );
+    });
+  };
+
+  return (
+    <div>
+      <h2>Products Management</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Product</th>
+            <th>Seller</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {products.map(p => (
+            <tr key={p.id}>
+              <td>{p.id}</td>
+              <td>{p.name}</td>
+              <td>{p.seller}</td>
+              <td>{p.status}</td>
+              <td>
+                <button onClick={() => updateStatus(p.id, "ACCEPTED")}>Accept</button>
+                <button onClick={() => updateStatus(p.id, "REJECTED")}>Reject</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
