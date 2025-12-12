@@ -1,94 +1,60 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import './AdminDashboard.css'; // optional for styling
+token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+    "username": user.Username,
+    "role": user.Role,
+    "exp": time.Now().Add(7 * 24 * time.Hour).Unix(), // 7 days
+})
 
-export default function AdminDashboard() {
-  const [products, setProducts] = useState([]);
 
-  useEffect(() => {
-    axios.get('/api/admin/products')
-      .then(res => setProducts(res.data))
-      .catch(err => console.error('Error fetching products:', err));
-  }, []);
 
-  const updateStatus = (id, status) => {
-    axios.put(`/api/admin/products/${id}`, { status })
-      .then(() => {
-        setProducts(prev =>
-          prev.map(p => p.id === id ? { ...p, status } : p)
-        );
+func (h *AuthHandler) ValidateToken(w http.ResponseWriter, r *http.Request) {
+    tokenStr := r.Header.Get("Authorization")
+    claims := &jwt.MapClaims{}
+    token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+        return h.JWTKey, nil
+    })
+
+    if err != nil || !token.Valid {
+        http.Error(w, "Invalid token", http.StatusUnauthorized)
+        return
+    }
+
+    json.NewEncoder(w).Encode(map[string]string{
+        "username": (*claims)["username"].(string),
+        "role":     (*claims)["role"].(string),
+    })
+}
+
+
+
+useEffect(() => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    fetch("http://localhost:8080/api/auth/validate", {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+      .then((res) => {
+        if (res.ok) {
+          return res.json();
+        } else {
+          throw new Error("Invalid token");
+        }
       })
-      .catch(err => console.error('Error updating status:', err));
-  };
-
-  return (
-    <div className="admin-dashboard">
-      <h2>Admin Product Management</h2>
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Description</th>
-            <th>Price</th>
-            <th>Seller</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.length === 0 ? (
-            <tr><td colSpan="6">No products available</td></tr>
-          ) : (
-            products.map(p => (
-              <tr key={p.id}>
-                <td>{p.name}</td>
-                <td>{p.description}</td>
-                <td>₹{p.price}</td>
-                <td>{p.seller}</td>
-                <td>{p.status}</td>
-                <td>
-                  {p.status === 'Pending' && (
-                    <>
-                      <button onClick={() => updateStatus(p.id, 'Approved')}>Accept</button>
-                      <button onClick={() => updateStatus(p.id, 'Rejected')}>Reject</button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+      .then((data) => {
+        if (data.role === "admin") {
+          navigate("/admin-dashboard");
+        } else if (data.role === "seller") {
+          navigate("/seller-dashboard");
+        } else {
+          navigate("/customer-dashboard");
+        }
+      })
+      .catch(() => {
+        localStorage.clear();
+      });
+  }
+}, []);
 
 
-
-
-.admin-dashboard {
-  padding: 20px;
-  font-family: Arial, sans-serif;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-.admin-table th, .admin-table td {
-  border: 1px solid #ccc;
-  padding: 10px;
-  text-align: left;
-}
-
-.admin-table th {
-  background-color: #f4f4f4;
-}
-
-.admin-table button {
-  margin-right: 5px;
-  padding: 5px 10px;
-  cursor: pointer;
-}
