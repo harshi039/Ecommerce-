@@ -1,60 +1,79 @@
-token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-    "username": user.Username,
-    "role": user.Role,
-    "exp": time.Now().Add(7 * 24 * time.Hour).Unix(), // 7 days
-})
+Feature: Login API Automation
+
+  As a user
+  I want to login using valid credentials
+  So that I can access the application
+
+  Background:
+    Given the Login API endpoint is available
+
+  @login @positive
+  Scenario: Successful login with valid credentials
+    When I send a login request with valid email "validuser@test.com" and password "Valid@123"
+    Then the response status code should be 200
+    And the authentication token should be present in response
+
+  @login @negative
+  Scenario: Login with invalid password
+    When I send a login request with valid email "validuser@test.com" and password "WrongPass"
+    Then the response status code should be 401
+    And the error message should be "Invalid credentials"
+
+  @login @negative
+  Scenario: Login with invalid email
+    When I send a login request with invalid email "invalid@test.com" and password "Valid@123"
+    Then the response status code should be 401
+    And the error message should be "Invalid credentials"
+
+  @login @edge
+  Scenario: Login with empty email and password
+    When I send a login request with empty email and empty password
+    Then the response status code should be 400
+    And the error message should be "Email and password are required"
+
+  @login @edge
+  Scenario: Login with special characters in email
+    When I send a login request with email "##@!!" and password "Valid@123"
+    Then the response status code should be 400
 
 
 
-func (h *AuthHandler) ValidateToken(w http.ResponseWriter, r *http.Request) {
-    tokenStr := r.Header.Get("Authorization")
-    claims := &jwt.MapClaims{}
-    token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-        return h.JWTKey, nil
-    })
 
-    if err != nil || !token.Valid {
-        http.Error(w, "Invalid token", http.StatusUnauthorized)
-        return
-    }
+   Feature: Register API Automation
 
-    json.NewEncoder(w).Encode(map[string]string{
-        "username": (*claims)["username"].(string),
-        "role":     (*claims)["role"].(string),
-    })
-}
+  As a new user
+  I want to register with valid details
+  So that I can create an account
 
+  Background:
+    Given the Register API endpoint is available
 
+  @register @positive
+  Scenario: Successful user registration
+    When I send a register request with email "newuser@test.com" and password "Strong@123"
+    Then the response status code should be 201
+    And the success message should be "User registered successfully"
 
-useEffect(() => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    fetch("http://localhost:8080/api/auth/validate", {
-      method: "GET",
-      headers: {
-        Authorization: token,
-      },
-    })
-      .then((res) => {
-        if (res.ok) {
-          return res.json();
-        } else {
-          throw new Error("Invalid token");
-        }
-      })
-      .then((data) => {
-        if (data.role === "admin") {
-          navigate("/admin-dashboard");
-        } else if (data.role === "seller") {
-          navigate("/seller-dashboard");
-        } else {
-          navigate("/customer-dashboard");
-        }
-      })
-      .catch(() => {
-        localStorage.clear();
-      });
-  }
-}, []);
+  @register @negative
+  Scenario: Register with existing email
+    When I send a register request with email "existing@test.com" and password "Strong@123"
+    Then the response status code should be 409
+    And the error message should be "User already exists"
 
+  @register @negative
+  Scenario: Register with invalid email format
+    When I send a register request with email "invalidEmail" and password "Strong@123"
+    Then the response status code should be 400
+    And the error message should be "Invalid email format"
 
+  @register @negative
+  Scenario: Register with weak password
+    When I send a register request with email "weakpass@test.com" and password "123"
+    Then the response status code should be 400
+    And the error message should be "Password does not meet complexity requirements"
+
+  @register @edge
+  Scenario: Register with empty fields
+    When I send a register request with empty email and empty password
+    Then the response status code should be 400
+    
