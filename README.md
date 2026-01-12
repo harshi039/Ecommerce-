@@ -61,3 +61,4 @@ Scenario: Delete product during instance termination
   Then response status code is '200'
   
   
+And set the base URL to 'https://dev-app.com.awscloud.dev.net'
