@@ -1,64 +1,104 @@
-Feature: ASG Login availability
+Feature: CFCS Sample app seller
 
 Background:
   Given start building a new request
-  And set the base URL to '${base.url}'
+  And set the base URL to 'https://dev-app.cocm.awscloud.dev.net'
 
-Scenario: Login works when one EC2 instance is terminated
-  Given accept content of type 'application/json'
-  And set the payload content type as 'application/json'
-  And set body to
-  """
-  {
-    "username": "testuser",
-    "pwd": "test123",
-    "role": "SELLER"
-  }
-  """
-  When post on path '/api/auth/login'
-  Then response status code is '200'
-  And response content type matches 'application/json'
-  And attach the response body to the report
+# ---------------------------
+# Positive Scenarios
+# ---------------------------
 
+Scenario: Seller adds a product with image successfully
+  And set the path to 'api/seller/products'
+  And set the method to 'POST'
+  Given set form parameter:
+    | name        | test |
+    | description | test |
+    | price       | 900 |
+    | seller      | user1765358421085 |
+    | image       | src/test/resources/data/headphones.png |
+  And send the request with method 'POST'
+  Then response status code is '201'
+  And response body matches '{"status":"product added"}'
 
-
-  Feature: ASG Register availability
-
-Background:
-  Given start building a new request
-  And set the base URL to '${base.url}'
-
-Scenario: Register works during scaling activity
-  Given accept content of type 'application/json'
-  And set the payload content type as 'application/json'
-  And set body to
-  """
-  {
-    "username": "newuser123",
-    "pwd": "pass123",
-    "role": "SELLER"
-  }
-  """
-  When post on path '/api/auth/register'
+Scenario: Seller views all products successfully
+  And set the path to 'api/seller/products?seller=user1765358421085'
+  And set the method to 'GET'
+  And send the request with method 'GET'
   Then response status code is '200'
   And attach the response body to the report
 
-
-  Feature: ASG Seller product operations
-
-Background:
-  Given start building a new request
-  And set the base URL to '${seller.base.url}'
-
-Scenario: View products during ASG scale out
-  Given accept content of type 'application/json'
-  When get from path '/api/seller/products?seller=testuser'
+Scenario: Seller deletes a product successfully
+  And set the path to 'api/seller/products/delete/1'
+  And set the method to 'DELETE'
+  And send the request with method 'DELETE'
   Then response status code is '200'
-  And attach the response body to the report
+  And response body matches '{"status":"deleted"}'
 
-Scenario: Delete product during instance termination
-  When delete on path '/api/seller/products/delete/1'
+# ---------------------------
+# Negative Scenarios
+# ---------------------------
+
+Scenario: Seller adds a product without image
+  And set the path to 'api/seller/products'
+  And set the method to 'POST'
+  Given set form parameter:
+    | name        | test2 |
+    | description | test2 |
+    | price       | 950 |
+    | seller      | user1765358421085 |
+  And send the request with method 'POST'
+  Then response status code is '400'
+  And response body matches '{"error":"image upload failed"}'
+
+Scenario: Seller tries to add a product with missing product name
+  And set the path to 'api/seller/products'
+  And set the method to 'POST'
+  Given set form parameter:
+    | description | test |
+    | price       | 900 |
+    | seller      | user1765358421085 |
+    | image       | src/test/resources/data/headphones.png |
+  And send the request with method 'POST'
+  Then response status code is '400'
+
+Scenario: Seller tries to add a product with invalid price
+  And set the path to 'api/seller/products'
+  And set the method to 'POST'
+  Given set form parameter:
+    | name        | test |
+    | description | test |
+    | price       | -10 |
+    | seller      | user1765358421085 |
+    | image       | src/test/resources/data/headphones.png |
+  And send the request with method 'POST'
+  Then response status code is '400'
+
+Scenario: Seller tries to delete non existing product
+  And set the path to 'api/seller/products/delete/99999'
+  And set the method to 'DELETE'
+  And send the request with method 'DELETE'
+  Then response status code is '404'
+
+# ---------------------------
+# ASG Resilience Scenarios
+# ---------------------------
+
+Scenario: Seller adds product during EC2 instance termination
+  And set the path to 'api/seller/products'
+  And set the method to 'POST'
+  Given set form parameter:
+    | name        | asgtest |
+    | description | scaling |
+    | price       | 999 |
+    | seller      | user1765358421085 |
+    | image       | src/test/resources/data/headphones.png |
+  And send the request with method 'POST'
+  Then response status code is '201'
+
+Scenario: Seller fetches products during scaling activity
+  And set the path to 'api/seller/products?seller=user1765358421085'
+  And set the method to 'GET'
+  And send the request with method 'GET'
   Then response status code is '200'
   
-  
-And set the base URL to 'https://dev-app.com.awscloud.dev.net'
