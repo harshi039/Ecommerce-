@@ -4,90 +4,71 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"time"
+	"mime/multipart"
+	"os"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/config"
+	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func CreateBackup(data []byte) error {
+/*
+   1️⃣ Interface — THIS is what makes testing possible
+*/
+type S3Client interface {
+	PutObject(
+		ctx context.Context,
+		params *awss3.PutObjectInput,
+		optFns ...func(*awss3.Options),
+	) (*awss3.PutObjectOutput, error)
 
-	fileName := fmt.Sprintf("backups/backup-%d.json", time.Now().Unix())
+	ListObjectsV2(
+		ctx context.Context,
+		params *awss3.ListObjectsV2Input,
+		optFns ...func(*awss3.Options),
+	) (*awss3.ListObjectsV2Output, error)
+}
 
-	_, err := Client.PutObject(context.TODO(), &s3.PutObjectInput{
+/*
+   2️⃣ Globals used by app & tests
+*/
+var Client S3Client
+var Bucket string
+
+/*
+   3️⃣ Init S3 (used in real app, NOT in tests)
+*/
+func InitS3() {
+	Bucket = os.Getenv("S3_BUCKET")
+
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		panic("Failed to load AWS config: " + err.Error())
+	}
+
+	Client = awss3.NewFromConfig(cfg)
+	fmt.Println("✅ AWS S3 connected!")
+}
+
+/*
+   4️⃣ Upload file to S3
+*/
+func UploadFile(file multipart.File, fileName string) (string, error) {
+	buf := new(bytes.Buffer)
+
+	_, err := buf.ReadFrom(file)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = Client.PutObject(context.TODO(), &awss3.PutObjectInput{
 		Bucket: &Bucket,
 		Key:    &fileName,
-		Body:   bytes.NewReader(data),
+		Body:   bytes.NewReader(buf.Bytes()),
 	})
-
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	fmt.Println("✅ Backup created:", fileName)
-	return nil
+	url := "https://" + Bucket + ".s3.amazonaws.com/" + fileName
+	return url, nil
 }
-
-
-
-func ListBackups() ([]map[string]interface{}, error) {
-
-	output, err := Client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
-		Bucket: &Bucket,
-		Prefix: strPtr("backups/"),
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	var backups []map[string]interface{}
-
-	for _, obj := range output.Contents {
-		backup := map[string]interface{}{
-			"backupId":        *obj.Key,
-			"timestamp":       obj.LastModified.Format(time.RFC3339),
-			"size":            obj.Size,
-			"storageLocation": "s3://" + Bucket + "/" + *obj.Key,
-			"status":          "SUCCESS",
-		}
-
-		backups = append(backups, backup)
-	}
-
-	return backups, nil
-}
-
-func strPtr(s string) *string {
-	return &s
-}
-
-
-
-package scheduler
-
-import (
-	"log"
-	"time"
-
-	"easyshop-backend/s3"
-)
-
-func StartBackupScheduler() {
-
-	ticker := time.NewTicker(5 * time.Minute)
-
-	go func() {
-		for {
-			<-ticker.C
-
-			data := []byte(`{"service":"easyshop","type":"auto-backup"}`)
-			err := s3.CreateBackup(data)
-
-			if err != nil {
-				log.Println("❌ Backup failed:", err)
-			}
-		}
-	}()
-}
-
-
