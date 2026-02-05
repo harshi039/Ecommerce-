@@ -1,132 +1,70 @@
-Here is the **AWS Aurora DB Module – Test Scenarios** written **exactly in the same format/style** as your S3 page (numbered list + short bullet points).
-
-You can copy-paste this directly into Confluence.
-
----
-
-# Test Scenarios
+Gotcha 👍
+Here are the **scenarios rewritten exactly in the same format/style as shown in your images** (plain Gherkin-style steps, no extra explanation).
 
 ---
 
-### 1. Database Connectivity Test
+### **Scenario: Successful backup restoration**
 
-* Deploy the sample application and configure the Aurora DB endpoint.
-* Verify that the application connects successfully to the database.
-* Validate that no connection errors are logged in the application.
-
----
-
-### 2. Data Insertion Test
-
-* Insert a new user record using the sample application.
-* Insert a new order/product record using the sample application.
-* Verify that the data is successfully stored in the Aurora database.
+Given the restore service is up and running
+And at least one valid backup exists in the system
+And set the path to `/api/restore`
+And set the method to `POST`
+And send the request with method `POST`
+Then response status code is `200`
+And response body matches `{"status":"success"}`
 
 ---
 
-### 3. Data Retrieval Test
+### **Scenario: Restore triggered when no backup exists**
 
-* Retrieve user details from the database using the sample application.
-* Retrieve order/product information from the database.
-* Validate that the retrieved data matches the original stored data.
-
----
-
-### 4. Data Update Test
-
-* Update an existing user profile using the sample application.
-* Update order status or product details.
-* Verify that the updated values are reflected correctly in the database.
+Given the restore service is up and running
+And no backup exists in the system
+And set the path to `/api/restore`
+And set the method to `POST`
+And send the request with method `POST`
+Then response status code is `400`
+And response body contains error message indicating no backup found
 
 ---
 
-### 5. Data Deletion Test
+### **Scenario: Restore API called with unsupported HTTP method**
 
-* Delete a record using the sample application.
-* Verify that the record is removed from the database.
-* Confirm that the deleted data is no longer accessible.
-
----
-
-### 6. Transaction Handling Test
-
-* Perform a multi-step operation (create order + payment + inventory update).
-* Validate that all operations succeed together as a single transaction.
-* Simulate a failure and verify that all changes are rolled back.
+Given the restore service is up and running
+And set the path to `/api/restore`
+And set the method to `GET`
+And send the request with method `GET`
+Then response status code is `405`
 
 ---
 
-### 7. Database Configuration Validation Test
+### **Scenario: Restore API called with request body**
 
-* Verify the Aurora cluster engine type and version.
-* Ensure backup retention period is configured correctly.
-* Validate that encryption at rest is enabled.
-* Verify that the database is deployed in private subnets.
-
----
-
-### 8. Security and Access Control Test
-
-* Verify that the database is not publicly accessible.
-* Attempt to connect using invalid credentials and validate access is denied.
-* Ensure only authorized application roles can access the database.
+Given the restore service is up and running
+And at least one valid backup exists in the system
+And set the path to `/api/restore`
+And set the method to `POST`
+And send the request with method `POST`
+Then response status code is `200`
+And response body matches `{"status":"success"}`
 
 ---
 
-### 9. Backup and Restore Test
+### **Scenario: Multiple restore requests triggered simultaneously**
 
-* Trigger a manual snapshot of the Aurora cluster.
-* Restore the snapshot to a new cluster.
-* Verify that the restored database contains the correct application data.
-
----
-
-### 10. Read Replica Test (If Applicable)
-
-* Verify that read replicas are created successfully.
-* Perform read operations and validate they are served correctly.
-* Simulate primary instance failure and verify automatic failover.
+Given the restore service is up and running
+And at least one valid backup exists in the system
+And set the path to `/api/restore`
+And set the method to `POST`
+And send multiple requests with method `POST`
+Then restore operation should not fail
+And data integrity should be maintained
 
 ---
 
-### 11. Error Handling Test
+If you want, I can:
 
-* Attempt to query a non-existent table.
-* Insert duplicate primary key values.
-* Simulate database downtime.
-* Verify that the application handles errors gracefully and logs proper messages.
+* Reduce this to **only 1 applicable TC** (as your teammate hinted)
+* Align wording **exactly to company BDD template**
+* Mark **which scenarios are optional vs mandatory**
 
----
-
-### 12. Logging and Monitoring Test
-
-* Verify that CloudWatch metrics for the Aurora cluster are available.
-* Validate CPU, memory, connections, and storage metrics.
-* Enable slow query logs and verify they are generated correctly.
-
----
-
-### 13. Performance Test
-
-* Insert and retrieve large volumes of records.
-* Measure query execution time.
-* Validate that performance meets expected thresholds under load.
-
----
-
-### 14. High Availability and Failover Test
-
-* Reboot the primary DB instance.
-* Verify that automatic failover occurs.
-* Confirm the application reconnects automatically.
-
----
-
-If you want, I can also provide:
-
-✅ Same format for **DynamoDB module**
-✅ Same format for **RDS (non-Aurora)**
-✅ **Backup module scenarios for Aurora**
-✅ Mapping to **Terraform variables & validation points**
-
-Just tell me 👍
+Just say the word 😊
