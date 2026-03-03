@@ -1,18 +1,17 @@
-Scenario: Backup listing API called with incorrect path
-
-Given the backup listing service is up and running
-And set the path to /api/backup/lists
-And set the method to GET
-And send the request with method GET
-Then response status code is 404
-
-
-Scenario: Successful backup listing from fixed vault
-
-Given the backup listing service is up and running
-And the configured vault exists in the system
-And set the path to /api/backup/list
-And set the method to GET
-And send the request with method GET
-Then response status code is 200
-And response body contains list of backups
+<td id="service-{{$svc.Id}}">
+    {{if or (ne $svc.PlanStatus "") (ne $svc.Status "") (ne $svc.TestStatus "")}}
+        <small>
+            {{if ne $svc.PlanStatus ""}}
+                Plan: <strong>{{$svc.PlanStatus}}</strong><br/>
+            {{end}}
+            {{if ne $svc.Status ""}}
+                Apply: <strong>{{$svc.Status}}</strong><br/>
+            {{end}}
+            {{if ne $svc.TestStatus ""}}
+                Test: <strong>{{$svc.TestStatus}}</strong>
+            {{end}}
+        </small>
+    {{else}}
+        <small>No Status</small>
+    {{end}}
+</td>
