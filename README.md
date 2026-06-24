@@ -1,27 +1,17 @@
-func (suite *OrderMetadataControllerTestSuite) TestCreate_InvalidOrderId() {
-    Convey("Create with invalid orderId should return 400", suite.T(), func() {
-        requestUiOrderMetadataWithBodyAndCheck(suite, http.MethodPost,
-            "/metadata/order/abc/create",
-            "ticket=ADO-123&key=mykey&value=myvalue",
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_InvalidMetaId() {
+    Convey("Update with invalid metaId should return 400", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+            "/metadata/order/128/meta/abc",
+            "ticket=ADO-123&key=mykey&value=myvalue&status=in-use",
             http.StatusBadRequest)
     })
 }
 
-func (suite *OrderMetadataControllerTestSuite) TestCreate_MissingTicket() {
-    Convey("Create without ticket should return 400", suite.T(), func() {
-        requestUiOrderMetadataWithBodyAndCheck(suite, http.MethodPost,
-            "/metadata/order/128/create",
-            "key=mykey&value=myvalue",
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_MissingTicket() {
+    Convey("Update without ticket should return 400", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+            "/metadata/order/128/meta/99",
+            "key=mykey&value=myvalue&status=in-use",
             http.StatusBadRequest)
     })
 }
-
-func (suite *OrderMetadataControllerTestSuite) TestCreate_MissingKey() {
-    Convey("Create without key should return 400", suite.T(), func() {
-        requestUiOrderMetadataWithBodyAndCheck(suite, http.MethodPost,
-            "/metadata/order/128/create",
-            "ticket=ADO-123&value=myvalue",
-            http.StatusBadRequest)
-    })
-}
-
