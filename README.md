@@ -1,35 +1,76 @@
-func (suite *OrderMetadataControllerTestSuite) TestCreate_TicketRequired()
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_InvalidMetaId() {
+    Convey("Update with invalid metaId should return 400", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+            "/metadata/order/abc/meta/99",
+            `ticket=ADO-123&key=mykey&value=myvalue&status=in-use`,
+            http.StatusBadRequest)
+    })
+}
 
-func (suite *OrderMetadataControllerTestSuite) TestCreate_KeyRequired()
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_MissingTicket() {
+    Convey("Update without ticket should return 400", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+            "/metadata/order/128/meta/99",
+            `key=mykey&value=myvalue&status=in-use`,
+            http.StatusBadRequest)
+    })
+}
 
-func (suite *OrderMetadataControllerTestSuite) TestCreate_DefaultStatus()
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_MetadataNotFound() {
+    ormMock := &mocks.Ormer{}
+    patch := gomonkey.ApplyFunc(orm.NewOrm, func() orm.Ormer { return ormMock })
+    defer patch.Reset()
 
-func (suite *OrderMetadataControllerTestSuite) TestCreate_ProductionWithoutOpsRole()
+    patch = gomonkey.ApplyMethod(reflect.TypeOf(ormMock), "Read",
+        func(*mocks.Ormer, interface{}, ...string) error {
+            return orm.ErrNoRows
+        })
+    defer patch.Reset()
 
-func (suite *OrderMetadataControllerTestSuite) TestCreate_InsertError()
+    Convey("Update when metadata not found should return 404", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+            "/metadata/order/128/meta/99",
+            `ticket=ADO-123&key=mykey&value=myvalue&status=in-use`,
+            http.StatusNotFound)
+    })
+}
 
-func (suite *OrderMetadataControllerTestSuite) TestCreate_AuditLogError()
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_DBFailure() {
+    ormMock := &mocks.Ormer{}
+    patch := gomonkey.ApplyFunc(orm.NewOrm, func() orm.Ormer { return ormMock })
+    defer patch.Reset()
 
-func (suite *OrderMetadataControllerTestSuite) TestCreate_Success()
+    patch = gomonkey.ApplyMethod(reflect.TypeOf(ormMock), "Update",
+        func(*mocks.Ormer, interface{}, ...string) (int64, error) {
+            return 0, orm.ErrArgs
+        })
+    defer patch.Reset()
 
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_InvalidMetadataID()
+    Convey("Update fails due to DB error should return 500", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+            "/metadata/order/128/meta/99",
+            `ticket=ADO-123&key=mykey&value=myvalue&status=in-use`,
+            http.StatusInternalServerError)
+    })
+}
 
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_MetadataNotFound()
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_Success() {
+    ormMock := &mocks.Ormer{}
+    patch := gomonkey.ApplyFunc(orm.NewOrm, func() orm.Ormer { return ormMock })
+    defer patch.Reset()
 
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_TicketRequired()
+    patch = gomonkey.ApplyMethod(reflect.TypeOf(ormMock), "Read",
+        func(*mocks.Ormer, interface{}, ...string) error { return nil })
+    defer patch.Reset()
 
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_ProductionWithoutOpsRole()
+    patch = gomonkey.ApplyMethod(reflect.TypeOf(ormMock), "Update",
+        func(*mocks.Ormer, interface{}, ...string) (int64, error) { return 1, nil })
+    defer patch.Reset()
 
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_DBUpdateError()
-
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_AuditLogError()
-
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_DisablePlanTrue()
-
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_DisablePlanFalse()
-
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_DryRun()
-
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_NormalMetadata()
-
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_Success()
+    Convey("Update succeeds should return 200", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+            "/metadata/order/128/meta/99",
+            `ticket=ADO-123&key=mykey&value=myvalue&status=in-use`,
+            http.StatusOK)
+    })
+}
