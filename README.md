@@ -1,69 +1,46 @@
-func (suite *OrderMetadataControllerTestSuite) TestDelete_InvalidMetaId() {
-    Convey("Delete with invalid metaId should return 400", suite.T(), func() {
-        requestUiOrderMetadataAndCheck(suite, http.MethodDelete,
-            "/metadata/order/128/meta/abc",
+// Invalid metaId (parse error or zero)
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_InvalidMetaId() {
+    Convey("Update with invalid metaId should return 400", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+            "/metadata/order/abc/meta/99",
+            `ticket=ADO-123&key=mykey&value=myvalue&status=in-use`,
             http.StatusBadRequest)
     })
 }
 
-func (suite *OrderMetadataControllerTestSuite) TestDelete_MissingTicket() {
-    Convey("Delete without ticket should return 400", suite.T(), func() {
-        requestUiOrderMetadataWithBodyAndCheck(suite, http.MethodDelete,
+// Missing ticket
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_MissingTicket() {
+    Convey("Update without ticket should return 400", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
             "/metadata/order/128/meta/99",
-            "", http.StatusBadRequest)
+            `key=mykey&value=myvalue&status=in-use`,
+            http.StatusBadRequest)
     })
 }
 
-func (suite *OrderMetadataControllerTestSuite) TestDelete_MetadataNotFound() {
+// Ops user restriction in production
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_ForbiddenInProduction() {
     ormMock := &mocks.Ormer{}
     patch := gomonkey.ApplyFunc(orm.NewOrm, func() orm.Ormer { return ormMock })
     defer patch.Reset()
 
+    // Order exists and environment is production
     patch = gomonkey.ApplyMethod(reflect.TypeOf(ormMock), "Read",
-        func(*mocks.Ormer, interface{}, ...string) error { return orm.ErrNoRows })
-    defer patch.Reset()
-
-    Convey("Delete when metadata not found should return 404", suite.T(), func() {
-        requestUiOrderMetadataAndCheck(suite, http.MethodDelete,
-            "/metadata/order/128/meta/99",
-            http.StatusNotFound)
-    })
-}
-
-func (suite *OrderMetadataControllerTestSuite) TestDelete_DBFailure() {
-    ormMock := &mocks.Ormer{}
-    patch := gomonkey.ApplyFunc(orm.NewOrm, func() orm.Ormer { return ormMock })
-    defer patch.Reset()
-
-    patch = gomonkey.ApplyMethod(reflect.TypeOf(ormMock), "Delete",
-        func(*mocks.Ormer, interface{}, ...string) (int64, error) {
-            return 0, orm.ErrArgs
+        func(*mocks.Ormer, interface{}, ...string) error {
+            return nil
         })
     defer patch.Reset()
 
-    Convey("Delete fails due to DB error should return 500", suite.T(), func() {
-        requestUiOrderMetadataAndCheck(suite, http.MethodDelete,
-            "/metadata/order/128/meta/99",
-            http.StatusInternalServerError)
+    // Simulate IsOpsUser returning false
+    patch = gomonkey.ApplyFunc(helpers.IsOpsUser, func(_ func(string) interface{}) bool {
+        return false
     })
-}
-
-func (suite *OrderMetadataControllerTestSuite) TestDelete_Success() {
-    ormMock := &mocks.Ormer{}
-    patch := gomonkey.ApplyFunc(orm.NewOrm, func() orm.Ormer { return ormMock })
     defer patch.Reset()
 
-    patch = gomonkey.ApplyMethod(reflect.TypeOf(ormMock), "Read",
-        func(*mocks.Ormer, interface{}, ...string) error { return nil })
-    defer patch.Reset()
-
-    patch = gomonkey.ApplyMethod(reflect.TypeOf(ormMock), "Delete",
-        func(*mocks.Ormer, interface{}, ...string) (int64, error) { return 1, nil })
-    defer patch.Reset()
-
-    Convey("Delete succeeds should return 200", suite.T(), func() {
-        requestUiOrderMetadataAndCheck(suite, http.MethodDelete,
+    Convey("Update in production by non-ops user should return 403", suite.T(), func() {
+        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
             "/metadata/order/128/meta/99",
-            http.StatusOK)
+            `ticket=ADO-123&key=mykey&value=myvalue&status=in-use`,
+            http.StatusForbidden)
     })
 }
