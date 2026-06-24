@@ -1,55 +1,105 @@
-import json
-import pandas as pd
+func (suite *OrderMetadataControllerTestSuite) TestCreate_Success() {
+    Convey("Given valid metadata create request", suite.T(), func() {
 
-# Read the file
-with open("ret.txt", "r") as f:
-    orders = json.load(f)
+        suite.OrderMock.On("CreateOrderMetadata",
+            mock.Anything,
+            mock.Anything,
+            mock.Anything,
+        ).Return(nil)
 
-result = []
+        resp := requestUiOrderMetadata(
+            suite,
+            "POST",
+            "/metadata/order/128?ticket=ADO-1&key=mykey&value=myvalue",
+        )
 
-for order in orders:
-
-    # Account ID
-    account_id = order.get("Cloud", {}).get("AccountId")
-
-    # Metadata
-    metadata_str = order.get("Metadata")
-
-    retention_period = None
-    retention_unit = "day"
-
-    if metadata_str:
-        metadata = json.loads(metadata_str)
-
-        retention_period = metadata.get("retention_period")
-        retention_unit = metadata.get("retention_period_unit", "day")
-
-    # Convert to days
-    retention_days = None
-
-    if retention_period is not None:
-
-        if str(retention_period).lower() == "permanent":
-            retention_days = 99 * 365
-
-        elif retention_unit.lower() == "year":
-            retention_days = int(retention_period) * 365
-
-        elif retention_unit.lower() == "month":
-            retention_days = int(retention_period) * 30
-
-        else:
-            retention_days = int(retention_period)
-
-    result.append({
-        "Account ID": account_id,
-        "Retention Period": retention_period,
-        "Retention Unit": retention_unit,
-        "Retention Days": retention_days
+        So(resp.Code, ShouldEqual, http.StatusOK)
     })
+}
 
-# Create Excel
-df = pd.DataFrame(result)
-df.to_excel("retention_report.xlsx", index=False)
+func (suite *OrderMetadataControllerTestSuite) TestUpdate_Success() {
+    Convey("Given valid metadata update request", suite.T(), func() {
 
-print("Excel file created successfully")
+        suite.OrderMock.On("UpdateOrderMetadata",
+            mock.Anything,
+            mock.Anything,
+            mock.Anything,
+        ).Return(nil)
+
+        resp := requestUiOrderMetadata(
+            suite,
+            "PUT",
+            "/metadata/order/128?id=10&ticket=ADO-1",
+        )
+
+        So(resp.Code, ShouldEqual, http.StatusOK)
+    })
+}
+
+func (suite *OrderMetadataControllerTestSuite) TestDelete_Success() {
+    Convey("Given valid metadata delete request", suite.T(), func() {
+
+        suite.OrderMock.On("DeleteOrderMetadata",
+            mock.Anything,
+            uint64(10),
+        ).Return(nil)
+
+        resp := requestUiOrderMetadata(
+            suite,
+            "DELETE",
+            "/metadata/order/128?metaId=10&ticket=ADO-1",
+        )
+
+        So(resp.Code, ShouldEqual, http.StatusOK)
+    })
+}
+
+func (suite *OrderMetadataControllerTestSuite) TestCreate_MissingValue_Should400() {
+
+    Convey("Given missing value", suite.T(), func() {
+
+        resp := requestUiOrderMetadata(
+            suite,
+            "POST",
+            "/metadata/order/128?ticket=ADO-1&key=mykey",
+        )
+
+        So(resp.Code, ShouldEqual, http.StatusBadRequest)
+        So(resp.Body.String(), ShouldContainSubstring, "value is required")
+    })
+}
+
+func (suite *OrderMetadataControllerTestSuite) TestCreate_InvalidOrderID_Should400() {
+
+    Convey("Given invalid order id", suite.T(), func() {
+
+        resp := requestUiOrderMetadata(
+            suite,
+            "POST",
+            "/metadata/order/abc?ticket=ADO-1&key=mykey&value=myvalue",
+        )
+
+        So(resp.Code, ShouldEqual, http.StatusBadRequest)
+    })
+}
+
+func (suite *OrderMetadataControllerTestSuite) TestCreate_ServiceFailure_Should500() {
+
+    Convey("Given service failure", suite.T(), func() {
+
+        suite.OrderMock.
+            On("CreateOrderMetadata",
+                mock.Anything,
+                mock.Anything,
+                mock.Anything).
+            Return(errors.New("db error"))
+
+        resp := requestUiOrderMetadata(
+            suite,
+            "POST",
+            "/metadata/order/128?ticket=ADO-1&key=mykey&value=myvalue",
+        )
+
+        So(resp.Code, ShouldEqual, http.StatusInternalServerError)
+    })
+}
