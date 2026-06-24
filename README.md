@@ -1,25 +1,23 @@
-// Invalid metaId (parse error or zero)
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_InvalidMetaId() {
-    Convey("Update with invalid metaId should return 400", suite.T(), func() {
-        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
-            "/metadata/order/abc/meta/99",
-            `ticket=ADO-123&key=mykey&value=myvalue&status=in-use`,
+// Invalid metaId
+func (suite *OrderMetadataControllerTestSuite) TestDelete_InvalidMetaId() {
+    Convey("Delete with invalid metaId should return 400", suite.T(), func() {
+        requestUiOrderMetadataAndCheck(suite, http.MethodDelete,
+            "/metadata/order/128/meta/abc",
             http.StatusBadRequest)
     })
 }
 
 // Missing ticket
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_MissingTicket() {
-    Convey("Update without ticket should return 400", suite.T(), func() {
-        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+func (suite *OrderMetadataControllerTestSuite) TestDelete_MissingTicket() {
+    Convey("Delete without ticket should return 400", suite.T(), func() {
+        requestUiOrderMetadataWithBodyAndCheck(suite, http.MethodDelete,
             "/metadata/order/128/meta/99",
-            `key=mykey&value=myvalue&status=in-use`,
-            http.StatusBadRequest)
+            "", http.StatusBadRequest)
     })
 }
 
 // Ops user restriction in production
-func (suite *OrderMetadataControllerTestSuite) TestUpdate_ForbiddenInProduction() {
+func (suite *OrderMetadataControllerTestSuite) TestDelete_ForbiddenInProduction() {
     ormMock := &mocks.Ormer{}
     patch := gomonkey.ApplyFunc(orm.NewOrm, func() orm.Ormer { return ormMock })
     defer patch.Reset()
@@ -31,16 +29,14 @@ func (suite *OrderMetadataControllerTestSuite) TestUpdate_ForbiddenInProduction(
         })
     defer patch.Reset()
 
-    // Simulate IsOpsUser returning false
     patch = gomonkey.ApplyFunc(helpers.IsOpsUser, func(_ func(string) interface{}) bool {
         return false
     })
     defer patch.Reset()
 
-    Convey("Update in production by non-ops user should return 403", suite.T(), func() {
-        requestUpdateOrderMetadataWithBodyAndCheck(suite, http.MethodPut,
+    Convey("Delete in production by non-ops user should return 403", suite.T(), func() {
+        requestUiOrderMetadataAndCheck(suite, http.MethodDelete,
             "/metadata/order/128/meta/99",
-            `ticket=ADO-123&key=mykey&value=myvalue&status=in-use`,
             http.StatusForbidden)
     })
 }
